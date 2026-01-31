@@ -16,6 +16,9 @@ export interface Env {
   /** Base URL of the external inference micro-service. */
   INFERENCE_SERVICE_URL: string;
 
+  /** Base URL of this Worker, used for inference callback. */
+  WORKER_URL: string;
+
   /** Shared HMAC secret used to authenticate calls to / from the inference service. */
   INFERENCE_SHARED_SECRET: string;
 

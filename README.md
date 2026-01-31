@@ -50,7 +50,7 @@ The Worker also needs these secrets (set via `wrangler secret put`):
 | Secret | Description |
 |---|---|
 | `SHARED_SECRET` | Auth token for Worker <-> Inference communication |
-| `INFERENCE_URL` | URL of the inference service (e.g. `http://localhost:8000`) |
+| `INFERENCE_URL` | URL of the inference service (e.g. `http://localhost:8001`) |
 
 The inference service reads these environment variables:
 
@@ -76,7 +76,7 @@ npm run dev:web
 # Terminal 2 — Worker (http://localhost:8787)
 npm run dev:worker
 
-# Terminal 3 — Inference (http://localhost:8000)
+# Terminal 3 — Inference (http://localhost:8001)
 cd services/inference
 source .venv/bin/activate
 uvicorn app.main:app --reload

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Maximum wall-clock time allowed for a single inference run.
     inference_timeout_seconds: int = 60
 
-    model_config = {"env_prefix": ""}
+    model_config = {"env_prefix": "", "env_file": ".env"}
 
 
 settings = Settings()  # type: ignore[call-arg]

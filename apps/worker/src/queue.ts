@@ -28,18 +28,11 @@ export async function handleQueue(
       }
 
       const imageBytes = await obj.arrayBuffer();
-      const blob = new Blob([imageBytes]);
 
-      // Determine the worker's own URL for the callback
-      const callbackUrl = `${env.INFERENCE_SERVICE_URL ? "" : "http://localhost:8787"}/api/internal/report`;
-      const workerCallbackUrl = env.INFERENCE_SERVICE_URL
-        ? new URL("/api/internal/report", env.INFERENCE_SERVICE_URL.replace(/\/analyze.*/, "")).toString()
-        : callbackUrl;
+      const workerBaseUrl = env.WORKER_URL || "http://localhost:8787";
+      const callbackUrl = `${workerBaseUrl}/api/internal/report`;
 
-      // For MVP, send the image URL approach won't work without pre-signed URLs.
-      // Instead, the inference service will receive job_id and download info.
-      // We pass a callback URL the inference service can use.
-      const inferenceUrl = `${env.INFERENCE_SERVICE_URL || "http://localhost:8000"}/analyze`;
+      const inferenceUrl = `${env.INFERENCE_SERVICE_URL || "http://localhost:8001"}/analyze`;
 
       const response = await fetch(inferenceUrl, {
         method: "POST",
@@ -51,7 +44,7 @@ export async function handleQueue(
           job_id: msg.job_id,
           object_key: msg.object_key,
           image_url: `data:application/octet-stream;base64,${arrayBufferToBase64(imageBytes)}`,
-          callback_url: workerCallbackUrl || "http://localhost:8787/api/internal/report",
+          callback_url: callbackUrl,
         }),
       });
 

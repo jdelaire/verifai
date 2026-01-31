@@ -11,5 +11,8 @@
     "dev:worker": "npm run dev -w apps/worker",
     "build:web": "npm run build -w apps/web",
     "build:worker": "npm run build -w apps/worker"
+  },
+  "devDependencies": {
+    "wrangler": "^4.61.1"
   }
 }
