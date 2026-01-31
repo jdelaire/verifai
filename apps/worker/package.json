@@ -1,0 +1,17 @@
+{
+  "name": "@verifai/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute verifai-db --local --file=./migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute verifai-db --file=./migrations/0001_init.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.99.0"
+  }
+}

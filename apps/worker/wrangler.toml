@@ -1,0 +1,27 @@
+name = "verifai-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "verifai-db"
+database_id = "local"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "verifai-uploads"
+
+[[queues.producers]]
+binding = "ANALYSIS_QUEUE"
+queue = "verifai-analysis"
+
+[[queues.consumers]]
+queue = "verifai-analysis"
+max_batch_size = 1
+max_retries = 2
+
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+REPORT_TTL_HOURS = "24"
