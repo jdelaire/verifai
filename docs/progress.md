@@ -44,27 +44,32 @@
 - [x] Limitations list generation (implemented + tested in M0)
 - [x] Added transformers + torch to requirements.txt
 
-## M4 — Report Page & Polling
-- [ ] Worker route `GET /api/report/:jobId`
-- [ ] Frontend processing view with step indicators
-- [ ] Polling logic with backoff
-- [ ] Shareable report page `/report/:jobId`
-- [ ] Render all report sections
+## M4 — Report Page & Polling ✅
+- [x] Worker route `GET /api/report/:jobId` (done in M1)
+- [x] Frontend ProcessingView with animated step indicators
+- [x] Polling logic with backoff (2s initial, 5s after 30s, 5min timeout)
+- [x] Shareable report page `/report/:jobId`
+- [x] ScoreGauge (SVG circular gauge, color-coded)
+- [x] EvidenceList, ProvenanceSection, MetadataSection, LimitationsBox
+- [x] ReportCard composing all sections with ML-unavailable fallback
+- [x] Copy share link with clipboard feedback
+- [x] Expiration display
+- [x] Frontend builds clean
 
-## M5 — Retention, Caching & Abuse Controls
-- [ ] Scheduled cron for expired job cleanup
-- [ ] File-hash deduplication
-- [ ] Cloudflare Turnstile (optional)
-- [ ] Max image dimension enforcement
-- [ ] Content-type validation
+## M5 — Retention, Caching & Abuse Controls ✅
+- [x] Scheduled cron for expired job cleanup (done in M1)
+- [x] File-hash deduplication (done in M1 finalize)
+- [ ] Cloudflare Turnstile (skipped — nice-to-have for MVP)
+- [x] Max image dimension enforcement (done in M3 detector.py)
+- [x] Content-type validation (done in M1 upload routes)
 
 ## M6 — Polish, Testing & Deploy
-- [ ] Unit tests (Python scoring/confidence)
-- [ ] Unit tests (Python evidence/limitations)
-- [ ] JSON contract validation tests
-- [ ] Integration test
+- [x] Unit tests (Python scoring/confidence) — 10 tests in test_scoring.py::TestComputeConfidence
+- [x] Unit tests (Python evidence/limitations) — 11 tests in test_scoring.py::TestVerdictText + 5 in TestBuildReport
+- [x] JSON contract validation tests — 12 tests in test_contract.py
+- [x] README
+- [x] Integration test — 7 tests in test_integration.py (full /analyze pipeline, auth, JSON round-trip)
 - [ ] Deploy frontend to Cloudflare Pages
 - [ ] Deploy Worker + D1 + R2 + Queue
 - [ ] Deploy inference service to Render
 - [ ] Smoke test in production
-- [ ] README
