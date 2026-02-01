@@ -7,13 +7,13 @@ AI-generated image detection as a service. Upload an image and receive a report 
 ```
 ┌──────────┐     ┌──────────────────┐     ┌───────────────────┐
 │ Vue SPA  │────>│ Cloudflare Worker│────>│ FastAPI Inference  │
-│ (Vite)   │<────│ D1 + R2 + Queue  │<────│ (ViT detector)    │
+│ (Vite)   │<────│ D1 + R2          │<────│ (ViT detector)    │
 └──────────┘     └──────────────────┘     └───────────────────┘
 ```
 
 - **Frontend** (`apps/web`) — Vue 3 + Vite + TailwindCSS v4. Drag-and-drop upload, polling, and report rendering.
-- **API Worker** (`apps/worker`) — Cloudflare Worker with D1 (SQLite) for job/report storage, R2 for temporary image storage, and Queues for async inference dispatch.
-- **Inference Service** (`services/inference`) — Python FastAPI service. Extracts EXIF metadata, checks C2PA provenance, and runs a ViT-based AI image detector (`umm-maybe/AI-image-detector`).
+- **API Worker** (`apps/worker`) — Cloudflare Worker with D1 (SQLite) for job/report storage, R2 for temporary image storage. Dispatches inference via `ctx.waitUntil()`.
+- **Inference Service** (`services/inference`) — Python FastAPI service. Extracts EXIF metadata, checks C2PA provenance, and optionally runs a ViT-based AI image detector (`umm-maybe/AI-image-detector`). The ML detector requires `requirements-ml.txt` (~1 GB RAM); without it, reports still include metadata and provenance analysis.
 - **Shared Types** (`packages/shared`) — TypeScript type definitions shared between frontend and worker.
 
 ## Prerequisites
@@ -34,7 +34,12 @@ npm install
 cd services/inference
 python3.11 -m venv .venv
 source .venv/bin/activate
+
+# Base dependencies (metadata + provenance only, no ML detector)
 pip install -r requirements.txt
+
+# With ML detector (requires ~1.5 GB disk, ~1 GB RAM for PyTorch + ViT model)
+pip install -r requirements-ml.txt
 ```
 
 ### 2. Configure environment
@@ -45,19 +50,21 @@ The Worker needs these `[vars]` in `wrangler.toml` (already set with defaults):
 |---|---|
 | `REPORT_TTL_HOURS` | Hours before reports expire (default: 24) |
 
-The Worker also needs these secrets (set via `wrangler secret put`):
+The Worker also needs secrets. For local dev, create `apps/worker/.dev.vars`:
 
-| Secret | Description |
-|---|---|
-| `SHARED_SECRET` | Auth token for Worker <-> Inference communication |
-| `INFERENCE_URL` | URL of the inference service (e.g. `http://localhost:8001`) |
+```
+INFERENCE_SERVICE_URL=http://localhost:8001
+INFERENCE_SHARED_SECRET=dev-secret
+```
 
-The inference service reads these environment variables:
+The inference service reads environment variables. Create `services/inference/.env`:
 
-| Variable | Description |
-|---|---|
-| `SHARED_SECRET` | Must match the Worker's secret |
-| `CALLBACK_AUTH_SECRET` | Token the inference service sends back in report callbacks |
+```
+SHARED_SECRET=dev-secret
+CALLBACK_AUTH_SECRET=dev-secret
+```
+
+`SHARED_SECRET` must match the Worker's `INFERENCE_SHARED_SECRET`.
 
 ### 3. Run the D1 migration
 
@@ -79,7 +86,7 @@ npm run dev:worker
 # Terminal 3 — Inference (http://localhost:8001)
 cd services/inference
 source .venv/bin/activate
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8001
 ```
 
 ## API Routes
@@ -95,7 +102,7 @@ uvicorn app.main:app --reload
 ## Testing
 
 ```bash
-# Python tests (38 tests — scoring, evidence, contract validation)
+# Python tests (45 tests — scoring, evidence, contract, integration)
 cd services/inference
 source .venv/bin/activate
 pytest
@@ -116,9 +123,9 @@ npm run build:web
 ## Key Design Decisions
 
 - **Proxy upload**: Cloudflare Workers can't generate pre-signed R2 URLs, so the Worker proxies uploads via `PUT /api/upload/:jobId`.
-- **Base64 image transfer**: The queue consumer reads from R2, base64-encodes the image, and sends it as a data URL to the inference service.
+- **Base64 image transfer**: The Worker reads from R2, base64-encodes the image, and sends it as a data URL to the inference service.
 - **Lazy model loading**: The ViT detector loads on first request to keep FastAPI startup fast. Returns `null` scores gracefully if the model is unavailable.
-- **Rate limiting**: IP-based, backed by D1. 10 requests/day, 1 request/minute burst limit.
+- **Rate limiting**: IP-based, backed by D1. 50 requests/day, 10-second burst limit.
 - **File dedup**: SHA-256 hash on finalize. If a matching non-expired report exists, it's returned immediately.
 - **Auto-cleanup**: Hourly cron deletes expired jobs, reports, and stale rate-limit rows.
 

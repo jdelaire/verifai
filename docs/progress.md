@@ -63,13 +63,13 @@
 - [x] Max image dimension enforcement (done in M3 detector.py)
 - [x] Content-type validation (done in M1 upload routes)
 
-## M6 — Polish, Testing & Deploy
+## M6 — Polish, Testing & Deploy ✅
 - [x] Unit tests (Python scoring/confidence) — 10 tests in test_scoring.py::TestComputeConfidence
 - [x] Unit tests (Python evidence/limitations) — 11 tests in test_scoring.py::TestVerdictText + 5 in TestBuildReport
 - [x] JSON contract validation tests — 12 tests in test_contract.py
 - [x] README
 - [x] Integration test — 7 tests in test_integration.py (full /analyze pipeline, auth, JSON round-trip)
-- [ ] Deploy frontend to Cloudflare Pages
-- [ ] Deploy Worker + D1 + R2 + Queue
-- [ ] Deploy inference service to Render
-- [ ] Smoke test in production
+- [x] Deploy frontend to Cloudflare Pages — https://verifai.pages.dev
+- [x] Deploy Worker + D1 + R2 — https://verifai-worker.jdelaire.workers.dev (Queue replaced with direct dispatch via ctx.waitUntil for free plan)
+- [x] Deploy inference service to Render — https://verifai-inference.onrender.com (ML deps excluded due to 512MB limit; detector gracefully returns null)
+- [x] Smoke test in production — upload → processing → report works end-to-end
