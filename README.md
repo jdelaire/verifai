@@ -54,14 +54,14 @@ The Worker also needs secrets. For local dev, create `apps/worker/.dev.vars`:
 
 ```
 INFERENCE_SERVICE_URL=http://localhost:8001
-INFERENCE_SHARED_SECRET=dev-secret
+INFERENCE_SHARED_SECRET=your-secret-here
 ```
 
 The inference service reads environment variables. Create `services/inference/.env`:
 
 ```
-SHARED_SECRET=dev-secret
-CALLBACK_AUTH_SECRET=dev-secret
+SHARED_SECRET=your-secret-here
+CALLBACK_AUTH_SECRET=your-secret-here
 ```
 
 `SHARED_SECRET` must match the Worker's `INFERENCE_SHARED_SECRET`.
