@@ -2,7 +2,6 @@ import { Env } from "./types";
 import { handleToken, handleUpload, handleFinalize } from "./routes/upload";
 import { handleGetReport } from "./routes/report";
 import { handleInternalReport } from "./routes/internal";
-import { handleQueue } from "./queue";
 import { handleScheduled } from "./cron";
 
 // ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ function handleOptions(): Response {
 // Simple pathname + method router
 // ---------------------------------------------------------------------------
 
-async function handleRequest(request: Request, env: Env): Promise<Response> {
+async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
   const method = request.method.toUpperCase();
@@ -60,7 +59,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
   // POST /api/upload/finalize
   if (method === "POST" && pathname === "/api/upload/finalize") {
-    return withCors(await handleFinalize(request, env));
+    return withCors(await handleFinalize(request, env, ctx));
   }
 
   // GET /api/report/:jobId
@@ -99,9 +98,9 @@ export default {
   /**
    * HTTP fetch handler – the primary request entry-point for the worker.
    */
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      return await handleRequest(request, env);
+      return await handleRequest(request, env, ctx);
     } catch (err) {
       console.error("Unhandled error in fetch handler:", err);
       return withCors(
@@ -111,13 +110,6 @@ export default {
         }),
       );
     }
-  },
-
-  /**
-   * Queue consumer handler – processes messages from the ANALYSIS_QUEUE.
-   */
-  async queue(batch: MessageBatch, env: Env): Promise<void> {
-    await handleQueue(batch, env);
   },
 
   /**

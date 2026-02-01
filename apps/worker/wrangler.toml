@@ -5,20 +5,11 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "verifai-db"
-database_id = "local"
+database_id = "f72f951d-2beb-4521-a1b1-b0aad1077ba3"
 
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "verifai-uploads"
-
-[[queues.producers]]
-binding = "ANALYSIS_QUEUE"
-queue = "verifai-analysis"
-
-[[queues.consumers]]
-queue = "verifai-analysis"
-max_batch_size = 1
-max_retries = 2
 
 [triggers]
 crons = ["0 * * * *"]

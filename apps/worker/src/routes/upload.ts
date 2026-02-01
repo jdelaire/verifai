@@ -2,6 +2,7 @@ import { Env } from "../types";
 import { createJob, getJob, updateJobStatus, updateJobHash, findJobByHash } from "../db";
 import { putObject, headObject, getObject, deleteObject } from "../r2";
 import { checkRateLimit } from "../middleware/rateLimit";
+import { dispatchAnalysis } from "../inference";
 
 const ACCEPTED_TYPES = new Set([
   "image/jpeg",
@@ -102,6 +103,7 @@ export async function handleUpload(
 export async function handleFinalize(
   request: Request,
   env: Env,
+  ctx: ExecutionContext,
 ): Promise<Response> {
   const body = await request.json<{ job_id?: string }>();
   const jobId = body.job_id;
@@ -146,12 +148,9 @@ export async function handleFinalize(
     });
   }
 
-  // Enqueue for analysis
+  // Dispatch analysis in the background
   await updateJobStatus(env, jobId, "processing");
-  await env.ANALYSIS_QUEUE.send({
-    job_id: jobId,
-    object_key: job.object_key,
-  });
+  ctx.waitUntil(dispatchAnalysis(env, jobId, job.object_key));
 
   return json({
     job_id: jobId,

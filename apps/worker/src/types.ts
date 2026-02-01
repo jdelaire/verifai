@@ -10,9 +10,6 @@ export interface Env {
   /** Cloudflare R2 bucket for uploaded image / document storage. */
   BUCKET: R2Bucket;
 
-  /** Cloudflare Queue producer for dispatching analysis work. */
-  ANALYSIS_QUEUE: Queue;
-
   /** Base URL of the external inference micro-service. */
   INFERENCE_SERVICE_URL: string;
 

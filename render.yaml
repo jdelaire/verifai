@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: verifai-inference
+    runtime: docker
+    dockerfilePath: ./services/inference/Dockerfile
+    dockerContext: ./services/inference
+    plan: free
+    envVars:
+      - key: SHARED_SECRET
+        sync: false
+      - key: CALLBACK_AUTH_SECRET
+        sync: false

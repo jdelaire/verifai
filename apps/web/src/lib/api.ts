@@ -1,6 +1,6 @@
 import type { Report } from "@verifai/shared/src/types";
 
-const BASE = "/api";
+const BASE = import.meta.env.VITE_API_BASE || "/api";
 
 export interface UploadTokenResult {
   job_id: string;

@@ -64,7 +64,7 @@ const isFailed = computed(() => report.value?.status === "failed");
     <!-- Loading / processing state -->
     <ProcessingView
       v-else-if="isLoading"
-      :status="report?.status ?? 'pending'"
+      :status="(report?.status as 'pending' | 'processing') ?? 'pending'"
     />
 
     <!-- Failed state -->
