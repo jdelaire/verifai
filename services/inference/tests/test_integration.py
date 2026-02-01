@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 import io
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -38,27 +38,24 @@ def _make_data_url(image_bytes: bytes, media_type: str = "image/jpeg") -> str:
     return f"data:{media_type};base64,{encoded}"
 
 
-def _mock_httpx_client(captured: dict):
-    """Build a mock httpx.AsyncClient that captures the callback POST.
+def _mock_sync_client(captured: dict):
+    """Build a mock httpx.Client (sync) that captures the callback POST.
 
-    Only patches the ``httpx.AsyncClient`` reference inside ``app.main``
-    so the test's own ``AsyncClient`` (ASGI transport) is unaffected.
+    Patches the ``httpx.Client`` reference used by the background pipeline.
     """
-    mock_client = AsyncMock()
+    mock_client = MagicMock()
 
-    async def _capture_post(url, *, json=None, headers=None, **kwargs):
+    def _capture_post(url, *, json=None, headers=None, **kwargs):
         captured["url"] = str(url)
         captured["body"] = json
         captured["headers"] = dict(headers) if headers else {}
         return httpx.Response(200, json={"status": "ok"})
 
     mock_client.post = _capture_post
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
 
-    mock_cm = MagicMock()
-    mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_cm.__aexit__ = AsyncMock(return_value=False)
-
-    mock_cls = MagicMock(return_value=mock_cm)
+    mock_cls = MagicMock(return_value=mock_client)
     return mock_cls
 
 
@@ -97,7 +94,7 @@ class TestAnalyzeEndpoint:
 
         with (
             patch("app.detector.detect", return_value=72),
-            patch("app.main.httpx.AsyncClient", _mock_httpx_client(captured)),
+            patch("app.main.httpx.Client", _mock_sync_client(captured)),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -108,7 +105,7 @@ class TestAnalyzeEndpoint:
                 )
 
         assert resp.status_code == 200
-        assert resp.json()["status"] == "ok"
+        assert resp.json()["status"] == "accepted"
 
         # Verify the callback was called with a well-formed report
         body = captured["body"]
@@ -140,7 +137,7 @@ class TestAnalyzeEndpoint:
 
         with (
             patch("app.detector.detect", return_value=None),
-            patch("app.main.httpx.AsyncClient", _mock_httpx_client(captured)),
+            patch("app.main.httpx.Client", _mock_sync_client(captured)),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -185,7 +182,7 @@ class TestAnalyzeEndpoint:
 
         with (
             patch("app.detector.detect", return_value=50),
-            patch("app.main.httpx.AsyncClient", _mock_httpx_client(captured)),
+            patch("app.main.httpx.Client", _mock_sync_client(captured)),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -220,7 +217,7 @@ class TestAnalyzeEndpoint:
 
         with (
             patch("app.detector.detect", return_value=95),
-            patch("app.main.httpx.AsyncClient", _mock_httpx_client(captured)),
+            patch("app.main.httpx.Client", _mock_sync_client(captured)),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -249,7 +246,7 @@ class TestAnalyzeEndpoint:
 
         with (
             patch("app.detector.detect", return_value=5),
-            patch("app.main.httpx.AsyncClient", _mock_httpx_client(captured)),
+            patch("app.main.httpx.Client", _mock_sync_client(captured)),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:

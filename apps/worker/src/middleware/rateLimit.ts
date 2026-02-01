@@ -1,7 +1,7 @@
 import { Env } from "../types";
 
-const DAILY_LIMIT = 10;
-const BURST_SECONDS = 60;
+const DAILY_LIMIT = 50;
+const BURST_SECONDS = 10;
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {

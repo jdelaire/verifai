@@ -1,6 +1,7 @@
 import type { Report } from "@verifai/shared/src/types";
 
 const BASE = import.meta.env.VITE_API_BASE || "/api";
+const ORIGIN = BASE.startsWith("http") ? new URL(BASE).origin : "";
 
 export interface UploadTokenResult {
   job_id: string;
@@ -34,7 +35,8 @@ export async function uploadFile(
   uploadUrl: string,
   file: File,
 ): Promise<void> {
-  const res = await fetch(uploadUrl, {
+  const url = uploadUrl.startsWith("http") ? uploadUrl : `${ORIGIN}${uploadUrl}`;
+  const res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": file.type },
     body: file,

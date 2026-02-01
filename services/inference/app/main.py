@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import traceback
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 
 from app.config import settings
 from app.schemas import AnalyzeRequest
@@ -37,64 +38,50 @@ async def _verify_shared_secret(request: Request) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Routes
+# Background pipeline
 # ---------------------------------------------------------------------------
 
-@app.get("/health")
-async def health() -> dict[str, str]:
-    """Lightweight health-check endpoint."""
-    return {"status": "ok"}
+def _run_pipeline(job_id: str, image_url: str, callback_url: str) -> None:
+    """Run the full analysis pipeline synchronously, then POST the result."""
+    import base64
 
-
-@app.post("/analyze", dependencies=[Depends(_verify_shared_secret)])
-async def analyze(request: AnalyzeRequest) -> dict[str, str]:
-    """Kick off an image analysis pipeline and POST results to callback_url.
-
-    The heavy lifting is intentionally synchronous in this MVP; a production
-    deployment would offload to a task queue (Celery, ARQ, etc.).
-    """
-
-    # Lazy imports so the module-level import graph stays lightweight and
-    # the service boots quickly even if optional deps are missing.
     from app import detector, metadata, provenance, scoring
 
     try:
-        # 1. Download the image ------------------------------------------------
-        import base64
-
-        if request.image_url.startswith("data:"):
-            # Handle base64 data URLs (used when Worker can't create pre-signed R2 URLs)
-            _, encoded = request.image_url.split(",", 1)
+        # 1. Decode the image
+        if image_url.startswith("data:"):
+            _, encoded = image_url.split(",", 1)
             image_bytes: bytes = base64.b64decode(encoded)
         else:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(settings.download_timeout_seconds),
-            ) as client:
-                img_resp = await client.get(request.image_url)
+            # Synchronous download for background task
+            import httpx as httpx_sync
+
+            with httpx_sync.Client(timeout=settings.download_timeout_seconds) as client:
+                img_resp = client.get(image_url)
                 img_resp.raise_for_status()
                 image_bytes = img_resp.content
 
-        # 2. Extract metadata --------------------------------------------------
+        # 2. Extract metadata
         meta = metadata.extract_metadata(image_bytes)
 
-        # 3. Check provenance --------------------------------------------------
+        # 3. Check provenance
         prov = provenance.check_provenance(image_bytes)
 
-        # 4. Run AI detector ---------------------------------------------------
+        # 4. Run AI detector
         ai_likelihood = detector.detect(image_bytes)
 
-        # 5. Build the report --------------------------------------------------
+        # 5. Build the report
         report = scoring.build_report(
-            job_id=request.job_id,
+            job_id=job_id,
             ai_likelihood=ai_likelihood,
             metadata=meta,
             provenance=prov,
         )
 
-        # 6. POST the report back to the callback URL --------------------------
-        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
-            await client.post(
-                request.callback_url,
+        # 6. POST the report back to the callback URL
+        with httpx.Client(timeout=10.0) as client:
+            client.post(
+                callback_url,
                 json=report.model_dump(),
                 headers={
                     "Authorization": f"Bearer {settings.callback_auth_secret}",
@@ -102,19 +89,17 @@ async def analyze(request: AnalyzeRequest) -> dict[str, str]:
                 },
             )
 
-        return {"status": "ok", "job_id": request.job_id}
+        logger.info("Analysis complete for job %s", job_id)
 
     except Exception:
-        # On any failure, try to notify the caller via the callback URL so the
-        # job does not hang in a "processing" state forever.
-        logger.exception("Analysis failed for job %s", request.job_id)
+        logger.exception("Analysis failed for job %s", job_id)
 
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
-                await client.post(
-                    request.callback_url,
+            with httpx.Client(timeout=10.0) as client:
+                client.post(
+                    callback_url,
                     json={
-                        "job_id": request.job_id,
+                        "job_id": job_id,
                         "status": "failed",
                         "error": traceback.format_exc(),
                     },
@@ -125,10 +110,33 @@ async def analyze(request: AnalyzeRequest) -> dict[str, str]:
                 )
         except Exception:
             logger.exception(
-                "Failed to send failure callback for job %s", request.job_id,
+                "Failed to send failure callback for job %s", job_id,
             )
 
-        raise HTTPException(
-            status_code=500,
-            detail=f"Analysis failed for job {request.job_id}",
-        )
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Lightweight health-check endpoint."""
+    return {"status": "ok"}
+
+
+@app.post("/analyze", dependencies=[Depends(_verify_shared_secret)])
+async def analyze(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    """Accept an analysis job and run the pipeline in the background.
+
+    Returns immediately so the calling Worker doesn't time out.
+    """
+    background_tasks.add_task(
+        _run_pipeline,
+        request.job_id,
+        request.image_url,
+        request.callback_url,
+    )
+    return {"status": "accepted", "job_id": request.job_id}
