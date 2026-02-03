@@ -35,6 +35,7 @@ def _load_model():
             settings.model_name,
             cache_dir=settings.model_cache_dir,
         )
+        _model.eval()
         logger.info("Model loaded successfully.")
     except Exception:
         logger.exception("Failed to load model %s", settings.model_name)
@@ -66,7 +67,7 @@ def detect(image_bytes: bytes) -> int | None:
 
         inputs = _processor(images=img, return_tensors="pt")
 
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = _model(**inputs)
             logits = outputs.logits
             probs = torch.nn.functional.softmax(logits, dim=-1)
